@@ -9,6 +9,8 @@
 ## Selecting Tickers
 Go to `run_chronos.py` and at the top, modify the array of tickers to whatever you want
 
+Tickers must be in this hf repo to work: https://huggingface.co/datasets/paperswithbacktest/Stocks-Daily-Price
+
 YAML file does not need to be modified
 
 ## Running Chronos: Baseline vs. Naive RAF Performance Comparison
