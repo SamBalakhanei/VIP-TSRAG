@@ -488,5 +488,3 @@ if __name__ == "__main__":
    logger = logging.getLogger("Chronos Evaluation")
    logger.setLevel(logging.INFO)
    app()
-
-
