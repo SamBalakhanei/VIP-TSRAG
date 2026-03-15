@@ -1,0 +1,7 @@
+- name: DESIRED_TICKER
+  hf_repo: paperswithbacktest/Stocks-Daily-Price
+  offset: -20
+  prediction_length: 20
+  num_rolls: 1
+  max_history: 75
+  distance: 20
