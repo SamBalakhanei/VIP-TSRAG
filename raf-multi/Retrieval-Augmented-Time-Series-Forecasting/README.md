@@ -6,18 +6,22 @@
     pip install -r requirements.txt
     ```
 
+## Selecting Tickers
+Go to `run_chronos.py` and at the top, modify the array of tickers to whatever you want
+
+YAML file does not need to be modified
 
 ## Running Chronos: Baseline vs. Naive RAF Performance Comparison
 This codebase is built on top of the main [Chronos Forecasting GitHub repository](https://github.com/amazon-science/chronos-forecasting). For more details and updates, please refer to the official repo.
 
 - For the baseline approach, run `run_chronos.py`:
     ```
-    python run_chronos.py path/to/config/file.yaml path/to/result/file.csv --no-augment
+    python run_chronos.py configs/multi.yaml path/to/result/file.csv --no-augment
     ```
 
 - For RAF, run `run_chronos.py`:
     ```
-    python run_chronos.py path/to/config/file.yaml path/to/result/file.csv --augment
+    python run_chronos.py configs/multi.yaml path/to/result/file.csv --augment
     ```
 
 ## Fine-tuning Chronos Models for Advanced RAF and Baseline
