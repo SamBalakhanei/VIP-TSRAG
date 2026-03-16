@@ -18,10 +18,10 @@ This codebase is built on top of the main [Chronos Forecasting GitHub repository
 
 - For the baseline approach, run `run_chronos.py`:
     ```
-    python run_chronos.py configs/multi.yaml path/to/result/file.csv --no-augment
+    python run_chronos.py configs/stocks.yaml path/to/result/file.csv --no-augment
     ```
 
 - For RAF, run `run_chronos.py`:
     ```
-    python run_chronos.py configs/multi.yaml path/to/result/file.csv --augment
+    python run_chronos.py configs/stocks.yaml path/to/result/file.csv --augment
     ```
