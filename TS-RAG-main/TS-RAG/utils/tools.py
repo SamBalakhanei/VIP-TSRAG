@@ -534,7 +534,7 @@ def get_borders(dataset_name, seq_len, total_length=None):
     elif 'ETTm' in dataset_name:
         border1s = [0, 12 * 30 * 24 * 4 - seq_len, 12 * 30 * 24 * 4 + 4 * 30 * 24 * 4 - seq_len]
         border2s = [12 * 30 * 24 * 4, 12 * 30 * 24 * 4 + 4 * 30 * 24 * 4, 12 * 30 * 24 * 4 + 8 * 30 * 24 * 4]
-    elif dataset_name in ['electricity', 'exchange_rate', 'weather', 'traffic']:
+    elif dataset_name in ['electricity', 'exchange_rate', 'weather', 'traffic', 'stocks']:
         if total_length is None:
             raise ValueError("need to provide total_length for {}".format(dataset_name))
         num_train = int(total_length * 0.7)

@@ -12,10 +12,30 @@ from chronos import ChronosPipeline
 
 from utils.tools import get_borders
 
-frequency_dict = {'ETTh1': 'hour', 'ETTh2': 'hour', 'ETTm1': 'minute', 'ETTm2': 'minute',
-                    'electricity': 'hour', 'weather': '10minutes', 'traffic': 'hour', 'exchange_rate': 'hour', 'illness': 'hour'}
-subdir_name_dict = {'ETTh1': 'ETT-small', 'ETTh2': 'ETT-small', 'ETTm1': 'ETT-small', 'ETTm2': 'ETT-small', 
-                    'electricity': 'electricity', 'weather': 'weather', 'traffic': 'traffic'}
+frequency_dict = {
+    'ETTh1': 'hour',
+    'ETTh2': 'hour',
+    'ETTm1': 'minute',
+    'ETTm2': 'minute',
+    'electricity': 'hour',
+    'weather': '10minutes',
+    'traffic': 'hour',
+    'exchange_rate': 'hour',
+    'illness': 'hour',
+    # custom financial stocks dataset aggregated by build_stocks_csv.py
+    'stocks': 'day',
+}
+subdir_name_dict = {
+    'ETTh1': 'ETT-small',
+    'ETTh2': 'ETT-small',
+    'ETTm1': 'ETT-small',
+    'ETTm2': 'ETT-small',
+    'electricity': 'electricity',
+    'weather': 'weather',
+    'traffic': 'traffic',
+    # custom directory for stocks.csv
+    'stocks': 'stocks',
+}
 
 def create_database(raw_data, timestamps, lookback_length, embedding_model, metadata):
     embeddings = []
