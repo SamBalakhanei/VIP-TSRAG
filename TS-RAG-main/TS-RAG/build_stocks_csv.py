@@ -14,7 +14,8 @@ def main():
     """
     repo_root = Path(__file__).resolve().parent.parent
     stocks_jsonl_dir = repo_root.parent / "sampled_stocks" / "new_directory"
-    output_dir = repo_root / "datasets" / "stocks"
+    #output_dir = repo_root / "datasets" / "stocks"
+    output_dir = repo_root/ "TS-RAG" / "datasets" / "stocks"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_csv = output_dir / "stocks.csv"
 
