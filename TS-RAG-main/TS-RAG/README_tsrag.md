@@ -12,5 +12,5 @@ python pretrain.py --model ChronosBoltRetrieve --augment_mode moe2 --pretrained_
 
 3) Evaluate TS‑RAG:
 ```
-python financial_infer_tsrag.py --stocks_dir "../sampled_stocks/new_directory" --num_stocks 5 --model_id "./checkpoints/ChronosBoltRetrieve_Stocks_TSRAG" --prediction_length 64 --compute_metrics --device "cpu"
+python financial_infer_tsrag.py --stocks_dir "../../sampled_stocks/new_directory" --num_stocks 5 --model_id "./checkpoints/ChronosBoltRetrieve_Stocks_TSRAG" --prediction_length 64 --compute_metrics --device "cpu"
 ```
