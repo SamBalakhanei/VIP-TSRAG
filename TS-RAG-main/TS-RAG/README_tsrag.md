@@ -10,7 +10,11 @@ python build_stocks_retrieval_pretrain.py
 python pretrain.py --model ChronosBoltRetrieve --augment_mode moe2 --pretrained_model_path "amazon/chronos-bolt-base" --retrieval_database_path "../database/pretrain/stocks_retrieval_database_512.parquet" --data_path "../datasets/pretrain/stocks-with-retrieval_512" --context_length 512 --prediction_length 64 --top_k 10 --batch_size 256 --train_steps 200000 --evaluation_steps 10000 --checkpoints "./checkpoints/" --model_id "ChronosBoltRetrieve_Stocks_TSRAG"
 ```
 
-3) Evaluate TS‑RAG:
+3) Evaluate TS-RAG. Use the same 5 tickers as baseline for fair comparison:
 ```
+# Random 5 stocks:
 python financial_infer_tsrag.py --stocks_dir "../../sampled_stocks/new_directory" --num_stocks 5 --model_id "./checkpoints/ChronosBoltRetrieve_Stocks_TSRAG" --prediction_length 64 --compute_metrics --device "cpu"
+
+# Same 5 stocks as baseline:
+python financial_infer_tsrag.py --stocks_dir "../../sampled_stocks/new_directory" --tickers AAT PUBM QQQA MLM GOOGL --model_id "./checkpoints/ChronosBoltRetrieve_Stocks_TSRAG" --prediction_length 64 --compute_metrics --device "cpu"
 ```
