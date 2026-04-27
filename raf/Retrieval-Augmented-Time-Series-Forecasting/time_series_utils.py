@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import torch
 
-def find_best_matches_full_series_batch(train_df, context_tensor_matrix, test_length, prediction_length, pipeline, top_n=1):
+def find_best_matches_full_series_batch(train_df, context_tensor_matrix, test_length, prediction_length, pipeline, top_n=3):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -94,9 +94,29 @@ def augment_time_series(train_df, pipeline, context_tensor_matrix, prediction_le
     mean_std_values = []
     for context_tensor in context_tensor_matrix:
         context_tensor = torch.tensor(context_tensor, dtype=torch.float32)
+
+
         elements = best_matches[cnt:cnt+top_n]
-        avg_best_segment = np.mean(elements, axis=0)
-        avg_segment_tensor = torch.tensor(avg_best_segment)
+
+        # convert to tensors
+        segments = [torch.tensor(e, dtype=torch.float32) for e in elements]
+
+        # compute pairwise distances
+        dist_01 = torch.norm(segments[0] - segments[1])
+        dist_02 = torch.norm(segments[0] - segments[2])
+        dist_12 = torch.norm(segments[1] - segments[2])
+
+        avg_dist = (dist_01 + dist_02 + dist_12) / 3
+
+        # threshold
+        THRESHOLD = 5.0
+
+        if avg_dist > THRESHOLD:
+            # inconsistent so skip
+            avg_segment_tensor = torch.zeros_like(segments[0])
+        else:
+            # consistent so use avg
+            avg_segment_tensor = torch.mean(torch.stack(segments), dim=0)
         
         mask = ~torch.isnan(avg_segment_tensor)
         avg_mean = avg_segment_tensor[mask].mean()

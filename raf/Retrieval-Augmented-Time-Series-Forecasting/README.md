@@ -13,6 +13,9 @@ Tickers must be in this hf repo to work: https://huggingface.co/datasets/papersw
 
 YAML file does not need to be modified
 
+## Modification to Architecture
+Instead of simply grabbing the top 1 best match, we grab the top 3 and ensure they are not completely unrelated. (see time_series_utils.py line 101)
+
 ## Running Chronos: Baseline vs. Naive RAF Performance Comparison
 This codebase is built on top of the main [Chronos Forecasting GitHub repository](https://github.com/amazon-science/chronos-forecasting). For more details and updates, please refer to the official repo.
 
