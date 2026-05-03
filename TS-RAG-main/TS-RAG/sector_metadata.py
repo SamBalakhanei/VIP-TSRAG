@@ -4,20 +4,9 @@ PRETRAIN_TICKERS = [
     "PUBM",
     "GOOGL",
     "ADP",
-    "CBRE",
-    "BLK",
-    "FRT",
-    "PINS",
-    "MKTX",
 ]
 
-EVAL_TICKERS = [
-    "INTA",
-    "FFIV",
-    "MLM",
-    "PARR",
-    "SEIC",
-]
+EVAL_TICKERS = PRETRAIN_TICKERS
 
 # Curated metadata used for sector-aware retrieval scoring.
 # NAICS codes are broad/company-level approximations adequate for metadata conditioning.

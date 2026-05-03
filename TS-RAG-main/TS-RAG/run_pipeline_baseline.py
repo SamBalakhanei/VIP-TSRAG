@@ -16,13 +16,7 @@ PRETRAIN_TICKERS = [
     "MKTX",
 ]
 
-EVAL_TICKERS = [
-    "INTA",
-    "FFIV",
-    "MLM",
-    "PARR",
-    "SEIC",
-]
+EVAL_TICKERS = PRETRAIN_TICKERS
 
 
 def run_step(cmd: list[str], label: str) -> None:

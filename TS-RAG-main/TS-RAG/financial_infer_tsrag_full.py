@@ -15,15 +15,9 @@ from models.ChronosBolt import (
     ChronosBoltModelForForecastingWithRetrieval,
     ChronosBoltPipelineWithRetrieval,
 )
+from sector_metadata import PRETRAIN_TICKERS
 
-EVAL_TICKERS = [
-    # Same-sector subset (software/tech): INTA, FFIV
-    "INTA",
-    "FFIV",
-    "MLM",
-    "PARR",
-    "SEIC",
-]
+EVAL_TICKERS = PRETRAIN_TICKERS
 
 
 def mase(pred: np.ndarray, true: np.ndarray, insample: np.ndarray, seasonality: int = 1) -> float:
@@ -334,16 +328,15 @@ def main():
             all_metrics.append(out)
 
     if args.compute_metrics and all_metrics:
-        keys = ["MAE", "MSE", "RMSE", "MASE", "WQL", "MAPE", "MSPE", "SMAPE", "ND"]
         print("\n=== Aggregate metrics across evaluated tickers ===")
-        for key in keys:
-            vals = np.array([m[key] for m in all_metrics], dtype=np.float64)
-            if key == "MASE":
-                vals = vals[~np.isnan(vals)]
-            if vals.size == 0:
-                print(f"  {key}: nan")
-            else:
-                print(f"  {key}: {float(np.mean(vals)):.6f}")
+        mase_vals = np.array([m["MASE"] for m in all_metrics], dtype=np.float64)
+        wql_vals = np.array([m["WQL"] for m in all_metrics], dtype=np.float64)
+        mase_vals = mase_vals[~np.isnan(mase_vals)]
+        if mase_vals.size > 0:
+            print(f"  MASE: {float(np.mean(mase_vals)):.6f}")
+        else:
+            print("  MASE: nan")
+        print(f"  WQL:  {float(np.mean(wql_vals)):.6f}")
 
 
 if __name__ == "__main__":

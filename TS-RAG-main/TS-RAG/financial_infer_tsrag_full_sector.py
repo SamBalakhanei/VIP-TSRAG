@@ -149,11 +149,15 @@ def main():
             results.append({"MAE": mae, "MSE": mse, "RMSE": rmse, "MASE": mase_val, "WQL": wql_val, "MAPE": mape, "MSPE": mspe, "SMAPE": smape, "ND": nd})
 
     if args.compute_metrics and results:
-        print("\n=== Aggregate metrics (sector-aware TS-RAG full) ===")
-        for k in ["MAE", "MSE", "RMSE", "MASE", "WQL", "MAPE", "MSPE", "SMAPE", "ND"]:
-            vals = np.array([r[k] for r in results], dtype=np.float64)
-            vals = vals[~np.isnan(vals)] if k == "MASE" else vals
-            print(f"{k}: {float(np.mean(vals)):.6f}" if vals.size > 0 else f"{k}: nan")
+        print("\n=== Aggregate metrics across evaluated tickers ===")
+        mase_vals = np.array([r["MASE"] for r in results], dtype=np.float64)
+        wql_vals = np.array([r["WQL"] for r in results], dtype=np.float64)
+        mase_vals = mase_vals[~np.isnan(mase_vals)]
+        if mase_vals.size > 0:
+            print(f"  MASE: {float(np.mean(mase_vals)):.6f}")
+        else:
+            print("  MASE: nan")
+        print(f"  WQL:  {float(np.mean(wql_vals)):.6f}")
 
 
 if __name__ == "__main__":

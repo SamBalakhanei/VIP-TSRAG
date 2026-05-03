@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from sector_metadata import PRETRAIN_TICKERS
+
 
 def main():
     """
@@ -22,11 +24,11 @@ def main():
     if not stocks_jsonl_dir.is_dir():
         raise FileNotFoundError(f"Stocks JSONL directory not found: {stocks_jsonl_dir}")
 
-    jsonl_files = sorted([p for p in stocks_jsonl_dir.iterdir() if p.suffix == ".jsonl"])
+    jsonl_files = sorted([p for p in stocks_jsonl_dir.iterdir() if p.suffix == ".jsonl" and p.stem in PRETRAIN_TICKERS])
     if not jsonl_files:
-        raise RuntimeError(f"No *.jsonl files found in {stocks_jsonl_dir}")
+        raise RuntimeError(f"No matching JSONL files found for the 10 tickers in {stocks_jsonl_dir}")
 
-    print(f"Found {len(jsonl_files)} JSONL files in {stocks_jsonl_dir}")
+    print(f"Processing {len(jsonl_files)} JSONL files for the 10 tickers: {sorted([p.stem for p in jsonl_files])}")
 
     merged_df = None
 

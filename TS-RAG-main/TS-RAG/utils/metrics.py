@@ -31,6 +31,25 @@ def SMAPE(pred, true):
 def ND(pred, true):
     return np.mean(np.abs(true - pred)) / np.mean(np.abs(true))
 
+def MASE(pred, true, insample, seasonality=1):
+    if len(insample) <= seasonality:
+        return float("nan")
+    scale = np.mean(np.abs(insample[seasonality:] - insample[:-seasonality]))
+    if scale <= 1e-12:
+        return float("nan")
+    return float(np.mean(np.abs(true - pred)) / scale)
+
+def WQL(quantile_forecast, true, quantiles):
+    # quantile_forecast shape: [num_quantiles, prediction_length]
+    denom = np.sum(np.abs(true)) + 1e-8
+    total = 0.0
+    for qi, q in enumerate(quantiles):
+        forecast_q = quantile_forecast[qi]
+        diff = true - forecast_q
+        loss_q = np.maximum(q * diff, (q - 1.0) * diff)
+        total += np.sum(loss_q)
+    return total / denom
+
 def metric(pred, true):
     mae = MAE(pred, true)
     mse = MSE(pred, true)

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 from chronos import BaseChronosPipeline
-from utils.metrics import metric as metric_fn
+from utils.metrics import MASE, WQL
 
 
 def load_close_series(jsonl_path: str, time_col: str = "timestamp", price_col: str = "close") -> np.ndarray:
@@ -23,7 +23,7 @@ def run_forecast_for_ticker(pipeline, stocks_dir, ticker, time_col, price_col, p
     jsonl_path = os.path.join(stocks_dir, f"{ticker}.jsonl")
     if not os.path.exists(jsonl_path):
         print(f"[WARN] File not found for ticker {ticker}: {jsonl_path}")
-        return
+        return None
 
     series = load_close_series(jsonl_path, time_col=time_col, price_col=price_col)
 
@@ -58,15 +58,13 @@ def run_forecast_for_ticker(pipeline, stocks_dir, ticker, time_col, price_col, p
     if compute_metrics and true_future is not None:
         pred_arr = median_forecast.reshape(-1)
         true_arr = true_future.reshape(-1)
-        mae, mse, rmse, mape, mspe, smape, nd = metric_fn(pred_arr, true_arr)
-        print("Metrics (using last prediction_length points as ground truth):")
-        print(f"  MAE:   {mae:.6f}")
-        print(f"  MSE:   {mse:.6f}")
-        print(f"  RMSE:  {rmse:.6f}")
-        print(f"  MAPE:  {mape:.6f}")
-        print(f"  MSPE:  {mspe:.6f}")
-        print(f"  SMAPE: {smape:.6f}")
-        print(f"  ND:    {nd:.6f}")
+        mase_val = MASE(pred_arr, true_arr, context_arr, seasonality=1)
+        wql_val = WQL(forecast[0].cpu().numpy(), true_arr, quantiles)
+        print("Metrics:")
+        print(f"  MASE:  {mase_val:.6f}")
+        print(f"  WQL:   {wql_val:.6f}")
+        return {"MASE": mase_val, "WQL": wql_val}
+    return None
 
 
 def main():
@@ -112,8 +110,9 @@ def main():
         torch_dtype=torch.bfloat16 if args.device != "cpu" else torch.float32,
     )
 
+    all_metrics = []
     for t in tickers:
-        run_forecast_for_ticker(
+        out = run_forecast_for_ticker(
             pipeline=pipeline,
             stocks_dir=args.stocks_dir,
             ticker=t,
@@ -122,6 +121,19 @@ def main():
             prediction_length=args.prediction_length,
             compute_metrics=args.compute_metrics,
         )
+        if out is not None:
+            all_metrics.append(out)
+
+    if args.compute_metrics and all_metrics:
+        print("\n=== Aggregate metrics across evaluated tickers ===")
+        mase_vals = np.array([m["MASE"] for m in all_metrics], dtype=np.float64)
+        wql_vals = np.array([m["WQL"] for m in all_metrics], dtype=np.float64)
+        mase_vals = mase_vals[~np.isnan(mase_vals)]
+        if mase_vals.size > 0:
+            print(f"  MASE: {float(np.mean(mase_vals)):.6f}")
+        else:
+            print("  MASE: nan")
+        print(f"  WQL:  {float(np.mean(wql_vals)):.6f}")
 
 
 if __name__ == "__main__":
