@@ -1,4 +1,5 @@
 import math
+import argparse
 from pathlib import Path
 from typing import Tuple
 
@@ -240,15 +241,32 @@ def build_pretrain_parquet_for_stocks(
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Build full TS-RAG retrieval DB and pretrain parquet for fixed stock subset."
+    )
+    parser.add_argument("--lookback_length", type=int, default=512)
+    parser.add_argument("--prediction_length", type=int, default=64)
+    parser.add_argument("--top_k", type=int, default=10)
+    parser.add_argument("--embedding_model_id", type=str, default="amazon/chronos-t5-base")
+    parser.add_argument(
+        "--device",
+        type=str,
+        default=None,
+        help='Embedding device for ChronosPipeline: "cuda" or "cpu". Default: cuda if available else cpu.',
+    )
+    args = parser.parse_args()
+
     repo_root = Path(__file__).resolve().parent
     stocks_csv = repo_root / "datasets" / "stocks" / "stocks.csv"
 
     retrieval_parquet = repo_root.parent / "database" / "pretrain" / "stocks_retrieval_database_full_512.parquet"
     pretrain_dir = repo_root / "datasets" / "pretrain" / "stocks-with-retrieval_full_512"
 
-    lookback_length = 512
-    prediction_length = 64
-    top_k = 10
+    lookback_length = args.lookback_length
+    prediction_length = args.prediction_length
+    top_k = args.top_k
+    resolved_device = args.device if args.device else ("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"[full] Using embedding device: {resolved_device}")
 
     if not stocks_csv.exists():
         raise FileNotFoundError(
@@ -260,8 +278,8 @@ def main():
         output_parquet=retrieval_parquet,
         lookback_length=lookback_length,
         prediction_length=prediction_length,
-        chronos_model_id="amazon/chronos-t5-base",
-        device="cpu",
+        chronos_model_id=args.embedding_model_id,
+        device=resolved_device,
     )
     print(f"[full] Retrieval DB built with embedding dim {emb_dim}")
 
@@ -272,8 +290,8 @@ def main():
         lookback_length=lookback_length,
         prediction_length=prediction_length,
         top_k=top_k,
-        chronos_model_id="amazon/chronos-t5-base",
-        device="cpu",
+        chronos_model_id=args.embedding_model_id,
+        device=resolved_device,
     )
 
 

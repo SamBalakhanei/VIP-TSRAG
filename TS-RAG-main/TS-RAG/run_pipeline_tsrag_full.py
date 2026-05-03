@@ -36,6 +36,7 @@ def main() -> None:
     parser.add_argument("--skip_build_csv", action="store_true")
     parser.add_argument("--skip_artifact_build", action="store_true")
     parser.add_argument("--skip_pretrain", action="store_true")
+    parser.add_argument("--artifact_device", type=str, default=None)
     args = parser.parse_args()
 
     if not args.skip_build_csv:
@@ -44,8 +45,14 @@ def main() -> None:
         print("\n[tsrag-full] Skipping build_stocks_csv.py")
 
     if not args.skip_artifact_build:
+        artifact_device = args.artifact_device if args.artifact_device else args.device
         run_step(
-            [sys.executable, "build_stocks_retrieval_pretrain_full.py"],
+            [
+                sys.executable,
+                "build_stocks_retrieval_pretrain_full.py",
+                "--device",
+                artifact_device,
+            ],
             "Building full TS-RAG retrieval/pretrain artifacts (fixed 10-stock subset)",
         )
     else:

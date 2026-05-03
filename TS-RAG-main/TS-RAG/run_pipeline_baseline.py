@@ -28,7 +28,19 @@ EVAL_TICKERS = [
 def run_step(cmd: list[str], label: str) -> None:
     print(f"\n[baseline] {label}")
     print(" ".join(cmd))
-    subprocess.run(cmd, check=True)
+    proc = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if proc.stdout:
+        print(proc.stdout, end="" if proc.stdout.endswith("\n") else "\n")
+    if proc.stderr:
+        print(proc.stderr, end="" if proc.stderr.endswith("\n") else "\n", file=sys.stderr)
+    if proc.returncode != 0:
+        raise subprocess.CalledProcessError(proc.returncode, cmd, output=proc.stdout, stderr=proc.stderr)
 
 
 def main() -> None:
