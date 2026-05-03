@@ -66,6 +66,7 @@ class Model(nn.Module):
         self.dropout = configs.dropout
         self.use_revin = configs.use_revin
         self.individual = configs.individual
+        self.pf_backbone = getattr(configs, "pf_backbone", 0)
 
         self.Q = nn.Parameter(torch.zeros(self.cycle_len, self.enc_in), requires_grad=True)
         self.GTR = GTR(d_series=self.seq_len, c=self.enc_in, CI=self.individual)
@@ -82,6 +83,14 @@ class Model(nn.Module):
             nn.Dropout(self.dropout),
             nn.Linear(self.d_model, self.pred_len)
         )
+
+        if self.pf_backbone:
+            self.future_proj = nn.Sequential(
+                nn.Linear(self.pred_len, self.d_model),
+                nn.GELU(),
+                nn.Dropout(self.dropout)
+            )
+            self.future_gate = nn.Parameter(torch.tensor(-2.0))
 
 
     def forward(self, x, cycle_index):
@@ -102,8 +111,25 @@ class Model(nn.Module):
 
         # Projection + MLP
         input_proj = self.input_proj(x_input + global_information)
-        hidden = self.model(input_proj)
-        output = self.output_proj(hidden + input_proj).permute(0, 2, 1)
+
+        if not self.pf_backbone:
+            hidden = self.model(input_proj)
+            output = self.output_proj(hidden + input_proj).permute(0, 2, 1)
+        else:
+            future_index = (
+                cycle_index.view(-1, 1)
+                + self.seq_len
+                + torch.arange(self.pred_len, device=cycle_index.device).view(1, -1)
+            ) % self.cycle_len
+
+            future_query = self.Q[future_index].permute(0, 2, 1)   # (B, C, pred_len)
+            future_hidden = self.future_proj(future_query)          # (B, C, d_model)
+
+            gate = torch.sigmoid(self.future_gate)
+            fused_hidden = input_proj + gate * future_hidden
+
+            hidden = self.model(fused_hidden)
+            output = self.output_proj(hidden + fused_hidden).permute(0, 2, 1)
 
         # RevIN de-normalize
         if self.use_revin:
