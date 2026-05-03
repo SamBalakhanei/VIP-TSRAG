@@ -8,6 +8,30 @@ import pandas as pd
 import torch
 from chronos import ChronosPipeline
 
+PRETRAIN_TICKERS = [
+    # Same-sector subset (software/tech): OTEX, PATH, PUBM
+    "OTEX",
+    "PATH",
+    "PUBM",
+    "GOOGL",
+    "ADP",
+    "CBRE",
+    "BLK",
+    "FRT",
+    "PINS",
+    "MKTX",
+]
+
+
+def resolve_pretrain_tickers(all_tickers: list[str]) -> list[str]:
+    selected = [t for t in PRETRAIN_TICKERS if t in all_tickers]
+    missing = [t for t in PRETRAIN_TICKERS if t not in all_tickers]
+    if missing:
+        print(f"[full] Warning: missing configured pretrain tickers: {missing}")
+    if not selected:
+        raise RuntimeError("[full] No configured pretrain tickers found in stocks.csv")
+    return selected
+
 
 def sliding_windows(series: np.ndarray, window: int) -> np.ndarray:
     n = len(series)
@@ -42,12 +66,13 @@ def build_retrieval_database_for_stocks(
     if "date" not in df.columns:
         raise ValueError(f"'date' column not found in {stocks_csv}")
 
-    tickers = df.columns[1:]
-    if len(tickers) == 0:
+    all_tickers = list(df.columns[1:])
+    if len(all_tickers) == 0:
         raise RuntimeError(f"No ticker columns found in {stocks_csv}")
+    tickers = resolve_pretrain_tickers(all_tickers)
 
     print(f"[full] Building retrieval database from {stocks_csv}")
-    print(f"[full] Found {len(tickers)} tickers: {list(tickers)[:5]}{' ...' if len(tickers) > 5 else ''}")
+    print(f"[full] Using {len(tickers)} configured pretrain tickers: {tickers}")
 
     pipeline = ChronosPipeline.from_pretrained(
         chronos_model_id,
@@ -135,11 +160,13 @@ def build_pretrain_parquet_for_stocks(
     if "date" not in df.columns:
         raise ValueError(f"'date' column not found in {stocks_csv}")
 
-    tickers = df.columns[1:]
-    if len(tickers) == 0:
+    all_tickers = list(df.columns[1:])
+    if len(all_tickers) == 0:
         raise RuntimeError(f"No ticker columns found in {stocks_csv}")
+    tickers = resolve_pretrain_tickers(all_tickers)
 
     print(f"[full] Building pretrain parquet from {stocks_csv}")
+    print(f"[full] Using {len(tickers)} configured pretrain tickers: {tickers}")
 
     # Load retrieval DB
     db = pd.read_parquet(retrieval_parquet)

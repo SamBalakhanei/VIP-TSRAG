@@ -16,6 +16,40 @@ from models.ChronosBolt import (
     ChronosBoltPipelineWithRetrieval,
 )
 
+EVAL_TICKERS = [
+    # Same-sector subset (software/tech): INTA, FFIV
+    "INTA",
+    "FFIV",
+    "MLM",
+    "PARR",
+    "SEIC",
+]
+
+
+def mase(pred: np.ndarray, true: np.ndarray, insample: np.ndarray, seasonality: int = 1) -> float:
+    if len(insample) <= seasonality:
+        return float("nan")
+    scale = np.mean(np.abs(insample[seasonality:] - insample[:-seasonality]))
+    if scale <= 1e-12:
+        return float("nan")
+    return float(np.mean(np.abs(true - pred)) / scale)
+
+
+def weighted_quantile_loss(
+    quantile_forecast: np.ndarray,
+    true: np.ndarray,
+    quantiles: list[float],
+) -> float:
+    # quantile_forecast shape: [num_quantiles, prediction_length]
+    denom = np.sum(np.abs(true)) + 1e-8
+    total = 0.0
+    for qi, q in enumerate(quantiles):
+        forecast_q = quantile_forecast[qi]
+        diff = true - forecast_q
+        loss_q = np.maximum(q * diff, (q - 1.0) * diff)
+        total += np.sum(loss_q)
+    return float((2.0 * total) / (len(quantiles) * denom))
+
 
 def load_close_series(jsonl_path: str, time_col: str = "timestamp", price_col: str = "close") -> np.ndarray:
     df = pd.read_json(jsonl_path, lines=True)
@@ -115,11 +149,11 @@ def run_forecast_for_ticker_full(
     device: torch.device,
     embed_pipeline: ChronosPipeline,
     lookback_length: int,
-) -> None:
+) -> dict | None:
     jsonl_path = os.path.join(stocks_dir, f"{ticker}.jsonl")
     if not os.path.exists(jsonl_path):
         print(f"[WARN] File not found for ticker {ticker}: {jsonl_path}")
-        return
+        return None
 
     series = load_close_series(jsonl_path, time_col=time_col, price_col=price_col)
 
@@ -172,14 +206,32 @@ def run_forecast_for_ticker_full(
         pred_arr = median_forecast.reshape(-1)
         true_arr = true_future.reshape(-1)
         mae, mse, rmse, mape, mspe, smape, nd = metric_fn(pred_arr, true_arr)
+        mase_val = mase(pred_arr, true_arr, context_arr.reshape(-1), seasonality=1)
+        quantile_forecast = forecast[0].detach().cpu().numpy()
+        wql_val = weighted_quantile_loss(quantile_forecast, true_arr, quantiles)
         print("Metrics (TS-RAG full, using last prediction_length points as ground truth):")
         print(f"  MAE:   {mae:.6f}")
         print(f"  MSE:   {mse:.6f}")
         print(f"  RMSE:  {rmse:.6f}")
+        print(f"  MASE:  {mase_val:.6f}" if not np.isnan(mase_val) else "  MASE:  nan")
+        print(f"  WQL:   {wql_val:.6f}")
         print(f"  MAPE:  {mape:.6f}")
         print(f"  MSPE:  {mspe:.6f}")
         print(f"  SMAPE: {smape:.6f}")
         print(f"  ND:    {nd:.6f}")
+        return {
+            "ticker": ticker,
+            "MAE": float(mae),
+            "MSE": float(mse),
+            "RMSE": float(rmse),
+            "MASE": float(mase_val) if not np.isnan(mase_val) else float("nan"),
+            "WQL": float(wql_val),
+            "MAPE": float(mape),
+            "MSPE": float(mspe),
+            "SMAPE": float(smape),
+            "ND": float(nd),
+        }
+    return None
 
 
 def main():
@@ -228,12 +280,8 @@ def main():
     args = parser.parse_args()
 
     if args.tickers is None or len(args.tickers) == 0:
-        all_files = [f for f in os.listdir(args.stocks_dir) if f.endswith(".jsonl")]
-        if not all_files:
-            raise RuntimeError(f"No *.jsonl files found in {args.stocks_dir}")
-        random.shuffle(all_files)
-        selected = all_files[: args.num_stocks]
-        tickers = [os.path.splitext(f)[0] for f in selected]
+        tickers = EVAL_TICKERS
+        print(f"No --tickers provided; using configured eval tickers: {tickers}")
     else:
         tickers = args.tickers
 
@@ -264,8 +312,9 @@ def main():
     model.eval()
     pipe = ChronosBoltPipelineWithRetrieval(model=model)
 
+    all_metrics = []
     for t in tickers:
-        run_forecast_for_ticker_full(
+        out = run_forecast_for_ticker_full(
             pipe=pipe,
             retrieval_index=index,
             embeddings=embeddings,
@@ -281,6 +330,20 @@ def main():
             embed_pipeline=embed_pipeline,
             lookback_length=args.lookback_length,
         )
+        if out is not None:
+            all_metrics.append(out)
+
+    if args.compute_metrics and all_metrics:
+        keys = ["MAE", "MSE", "RMSE", "MASE", "WQL", "MAPE", "MSPE", "SMAPE", "ND"]
+        print("\n=== Aggregate metrics across evaluated tickers ===")
+        for key in keys:
+            vals = np.array([m[key] for m in all_metrics], dtype=np.float64)
+            if key == "MASE":
+                vals = vals[~np.isnan(vals)]
+            if vals.size == 0:
+                print(f"  {key}: nan")
+            else:
+                print(f"  {key}: {float(np.mean(vals)):.6f}")
 
 
 if __name__ == "__main__":

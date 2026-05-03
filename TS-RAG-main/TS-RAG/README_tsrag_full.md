@@ -25,6 +25,11 @@ This will create:
 - `../database/pretrain/stocks_retrieval_database_full_512.parquet`
 - `datasets/pretrain/stocks-with-retrieval_full_512/stocks_pretrain_full.parquet`
 
+Hardcoded pretrain subset used by `build_stocks_retrieval_pretrain_full.py`:
+
+- `OTEX`, `PATH`, `PUBM` (same-sector subset)
+- `GOOGL`, `ADP`, `CBRE`, `BLK`, `FRT`, `PINS`, `MKTX`
+
 2) Pretrain full TS‑RAG on stocks
 ---------------------------------
 
@@ -53,10 +58,9 @@ This trains a TS‑RAG model that uses retrieval during training, with embedding
 -----------------------------------------------------
 
 ```bash
-# Random 5 stocks:
+# Uses hardcoded eval subset when --tickers is omitted:
 python financial_infer_tsrag_full.py \
   --stocks_dir "../../sampled_stocks/new_directory" \
-  --num_stocks 5 \
   --model_id "./checkpoints/ChronosBoltRetrieve_Stocks_TSRAG_full" \
   --retrieval_parquet "../database/pretrain/stocks_retrieval_database_full_512.parquet" \
   --prediction_length 64 \
@@ -80,7 +84,13 @@ This script:
 - Uses `amazon/chronos-t5-base` to embed the **test context** and query FAISS.
 - Constructs `retrieved_seq` and `distances` for each test example.
 - Runs `ChronosBoltRetrieve` via `ChronosBoltPipelineWithRetrieval` to get quantile forecasts.
-- Computes metrics (MAE, MSE, RMSE, MAPE, MSPE, SMAPE, ND) on the last 64 points.
+- Computes metrics (MAE, MSE, RMSE, MASE, WQL, MAPE, MSPE, SMAPE, ND) on the last 64 points.
+- Prints per-ticker metrics and aggregate mean metrics across evaluated tickers.
+
+Hardcoded evaluation subset used by default in `financial_infer_tsrag_full.py`:
+
+- `INTA`, `FFIV` (same-sector subset)
+- `MLM`, `PARR`, `SEIC`
 
 You can now compare three approaches on exactly the same set of stocks:
 

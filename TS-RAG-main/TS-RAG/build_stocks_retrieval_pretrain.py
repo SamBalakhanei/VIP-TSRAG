@@ -8,6 +8,30 @@ import numpy as np
 import pandas as pd
 import torch
 
+PRETRAIN_TICKERS = [
+    # Same-sector subset (software/tech): OTEX, PATH, PUBM
+    "OTEX",
+    "PATH",
+    "PUBM",
+    "GOOGL",
+    "ADP",
+    "CBRE",
+    "BLK",
+    "FRT",
+    "PINS",
+    "MKTX",
+]
+
+
+def resolve_pretrain_tickers(all_tickers: list[str]) -> list[str]:
+    selected = [t for t in PRETRAIN_TICKERS if t in all_tickers]
+    missing = [t for t in PRETRAIN_TICKERS if t not in all_tickers]
+    if missing:
+        print(f"Warning: missing configured pretrain tickers: {missing}")
+    if not selected:
+        raise RuntimeError("No configured pretrain tickers found in stocks.csv")
+    return selected
+
 
 def sliding_windows(
     series: np.ndarray,
@@ -44,12 +68,13 @@ def build_stocks_retrieval_database(
     if "date" not in df.columns:
         raise ValueError(f"'date' column not found in {stocks_csv}")
 
-    tickers = df.columns[1:]
-    if len(tickers) == 0:
+    all_tickers = list(df.columns[1:])
+    if len(all_tickers) == 0:
         raise RuntimeError(f"No ticker columns found in {stocks_csv}")
+    tickers = resolve_pretrain_tickers(all_tickers)
 
     print(f"Building retrieval database from {stocks_csv}")
-    print(f"Found {len(tickers)} tickers: {list(tickers)[:5]}{' ...' if len(tickers) > 5 else ''}")
+    print(f"Using {len(tickers)} configured pretrain tickers: {tickers}")
 
     # We choose a fixed embedding dimension compatible with pretrain.py (d=768).
     embedding_dim = 768
@@ -131,11 +156,13 @@ def build_stocks_pretrain_parquet(
     if "date" not in df.columns:
         raise ValueError(f"'date' column not found in {stocks_csv}")
 
-    tickers = df.columns[1:]
-    if len(tickers) == 0:
+    all_tickers = list(df.columns[1:])
+    if len(all_tickers) == 0:
         raise RuntimeError(f"No ticker columns found in {stocks_csv}")
+    tickers = resolve_pretrain_tickers(all_tickers)
 
     print(f"Building pretrain parquet from {stocks_csv}")
+    print(f"Using {len(tickers)} configured pretrain tickers: {tickers}")
 
     # Load retrieval DB
     db = pd.read_parquet(retrieval_parquet)
