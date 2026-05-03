@@ -66,6 +66,7 @@ class Model(nn.Module):
         self.dropout = configs.dropout
         self.use_revin = configs.use_revin
         self.individual = configs.individual
+        self.residual_gtr = getattr(configs, "residual_gtr", 0)
 
         self.Q = nn.Parameter(torch.zeros(self.cycle_len, self.enc_in), requires_grad=True)
         self.GTR = GTR(d_series=self.seq_len, c=self.enc_in, CI=self.individual)
@@ -82,6 +83,10 @@ class Model(nn.Module):
             nn.Dropout(self.dropout),
             nn.Linear(self.d_model, self.pred_len)
         )
+
+        if self.residual_gtr:
+            self.cycle_scale = nn.Parameter(torch.ones(1, 1, self.enc_in))
+            self.cycle_bias = nn.Parameter(torch.zeros(1, 1, self.enc_in))
 
 
     def forward(self, x, cycle_index):
@@ -103,7 +108,21 @@ class Model(nn.Module):
         # Projection + MLP
         input_proj = self.input_proj(x_input + global_information)
         hidden = self.model(input_proj)
-        output = self.output_proj(hidden + input_proj).permute(0, 2, 1)
+        y_resid = self.output_proj(hidden + input_proj).permute(0, 2, 1)
+
+        if not self.residual_gtr:
+            output = y_resid
+        else:
+            future_index = (
+                cycle_index.view(-1, 1)
+                + self.seq_len
+                + torch.arange(self.pred_len, device=cycle_index.device).view(1, -1)
+            ) % self.cycle_len
+
+            y_cycle = self.Q[future_index]
+            y_cycle = self.cycle_scale * y_cycle + self.cycle_bias
+
+            output = y_cycle + y_resid
 
         # RevIN de-normalize
         if self.use_revin:

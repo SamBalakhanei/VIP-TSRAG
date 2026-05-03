@@ -16,6 +16,9 @@ parser.add_argument('--model_id', type=str, required=True, default='test', help=
 parser.add_argument('--model', type=str, required=True, default='GTR',
                     help='model name, options: [Informer, Autoformer, ...]')
 
+# Residualized GTR with cycle-based forecast addition
+parser.add_argument('--residual_gtr', type=int, default=0, help='0: original GTR, 1: residualized GTR')
+
 # data loader
 parser.add_argument('--data', type=str, required=True, default='ETTh1', help='dataset type')
 parser.add_argument('--root_path', type=str, default='./data/ETT/', help='root path of the data file')
@@ -125,7 +128,7 @@ if args.is_training:
     for ii in range(args.itr):
 
         # setting record of experiments
-        setting = '{}_{}_{}_ft{}_sl{}_pl{}_cycle{}_seed{}'.format(
+        setting = '{}_{}_{}_ft{}_sl{}_pl{}_cycle{}_resgtr{}_seed{}'.format(
             args.model_id,
             args.model,
             args.data,
@@ -133,6 +136,7 @@ if args.is_training:
             args.seq_len,
             args.pred_len,
             args.cycle,
+            args.residual_gtr,
             fix_seed)
 
         exp = Exp(args)  # set experiments
