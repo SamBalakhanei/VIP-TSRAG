@@ -9,6 +9,13 @@ import pandas as pd
 import torch
 from chronos import ChronosPipeline
 
+
+def configure_device(device: str) -> None:
+    if device == "cpu":
+        torch.set_num_threads(1)
+        torch.set_num_interop_threads(1)
+        print("[full] Configured CPU threading: torch.set_num_threads(1), torch.set_num_interop_threads(1)")
+
 PRETRAIN_TICKERS = [
     # Same-sector subset (software/tech): OTEX, PATH, PUBM
     "OTEX",
@@ -75,6 +82,7 @@ def build_retrieval_database_for_stocks(
     print(f"[full] Building retrieval database from {stocks_csv}")
     print(f"[full] Using {len(tickers)} configured pretrain tickers: {tickers}")
 
+    configure_device(device)
     pipeline = ChronosPipeline.from_pretrained(
         chronos_model_id,
         device_map=device,
@@ -94,7 +102,7 @@ def build_retrieval_database_for_stocks(
         num = len(series) - total_len + 1
         print(f"[full] Ticker {ticker}: {len(series)} points, {num} windows")
 
-        batch_size = 256
+        batch_size = 256 if device != "cpu" else 32
         num_batches = math.ceil(num / batch_size)
 
         for b in range(num_batches):
@@ -179,6 +187,7 @@ def build_pretrain_parquet_for_stocks(
     index = faiss.IndexFlatL2(d)
     index.add(embeddings)
 
+    configure_device(device)
     pipeline = ChronosPipeline.from_pretrained(
         chronos_model_id,
         device_map=device,
@@ -197,7 +206,7 @@ def build_pretrain_parquet_for_stocks(
         num = len(series) - total_len + 1
         print(f"[full] Ticker {ticker}: {num} windows for pretraining")
 
-        batch_size = 256
+        batch_size = 256 if device != "cpu" else 32
         num_batches = math.ceil(num / batch_size)
 
         for b in range(num_batches):
@@ -260,7 +269,7 @@ def main():
     stocks_csv = repo_root / "datasets" / "stocks" / "stocks.csv"
 
     retrieval_parquet = repo_root.parent / "database" / "pretrain" / "stocks_retrieval_database_full_512.parquet"
-    pretrain_dir = repo_root / "datasets" / "pretrain" / "stocks-with-retrieval_full_512"
+    pretrain_dir = repo_root / "TS-RAG" /"datasets" / "pretrain" / "stocks-with-retrieval_full_512"
 
     lookback_length = args.lookback_length
     prediction_length = args.prediction_length

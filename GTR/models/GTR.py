@@ -83,6 +83,18 @@ class Model(nn.Module):
             nn.Linear(self.d_model, self.pred_len)
         )
 
+        self.horizon_aware = getattr(configs, 'horizon_aware', 0)
+
+        if self.horizon_aware:
+            self.Qh = nn.Parameter(
+                torch.zeros(self.cycle_len, self.pred_len, self.enc_in),
+                requires_grad=True
+            )
+            self.horizon_proj = nn.Sequential(
+                nn.Linear(self.pred_len, self.pred_len),
+                nn.Dropout(self.dropout),
+            )
+
 
     def forward(self, x, cycle_index):
         # RevIN normalize
@@ -94,16 +106,37 @@ class Model(nn.Module):
         # (B, S, C) -> (B, C, S)
         x_input = x.permute(0, 2, 1)
 
-        # GTR part
+        # ===== ORIGINAL GTR PATH =====
         gather_index = (cycle_index.view(-1, 1) +
                         torch.arange(self.seq_len, device=cycle_index.device).view(1, -1)) % self.cycle_len
         query_input = self.Q[gather_index].permute(0, 2, 1)
         global_information = self.GTR(x_input, query_input)
 
-        # Projection + MLP
         input_proj = self.input_proj(x_input + global_information)
         hidden = self.model(input_proj)
-        output = self.output_proj(hidden + input_proj).permute(0, 2, 1)
+        base_output = self.output_proj(hidden + input_proj)  # (B, C, pred_len)
+
+        # ===== HORIZON-AWARE ADDITION =====
+        if getattr(self, "horizon_aware", 0):
+            h = torch.arange(self.pred_len, device=cycle_index.device)  # (pred_len,)
+
+            future_pos = (
+                cycle_index.view(-1, 1)
+                + self.seq_len
+                + h.view(1, -1)
+            ) % self.cycle_len  # (B, pred_len)
+
+            h_idx = h.view(1, -1).expand(future_pos.size(0), -1)  # (B, pred_len)
+
+            future_query = self.Qh[future_pos, h_idx]             # (B, pred_len, C)
+            future_query = future_query.permute(0, 2, 1)          # (B, C, pred_len)
+
+            horizon_bias = self.horizon_proj(future_query)        # (B, C, pred_len)
+            output = base_output + horizon_bias
+        else:
+            output = base_output
+
+        output = output.permute(0, 2, 1)  # (B, pred_len, C)
 
         # RevIN de-normalize
         if self.use_revin:

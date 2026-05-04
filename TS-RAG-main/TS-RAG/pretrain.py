@@ -7,12 +7,10 @@ import argparse
 import warnings
 import numpy as np
 import torch.nn as nn
-
 from tqdm import tqdm
 from transformers import AutoConfig
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
-
 from models.moment import MOMENTPipelineWithRetrieval
 from dataset import CustomPretrainDataset, Retriever_for_pretrain
 from models.ChronosBolt import ChronosBoltModelForForecasting, ChronosBoltModelForForecastingWithRetrieval
@@ -78,6 +76,7 @@ time_now = time.time()
 
 ## load model, optimizer
 config = AutoConfig.from_pretrained(args.pretrained_model_path)
+config.chronos_config["prediction_length"] = args.prediction_length
 if args.model == 'ChronosBolt':
     model = ChronosBoltModelForForecasting.from_pretrained(args.pretrained_model_path, config=config)
     model.load_state_dict(torch.load('./checkpoints/base/autogluon_model.pth'), strict=False)
@@ -93,7 +92,7 @@ elif args.model == 'MOMENTRetrieve':
     model = MOMENTPipelineWithRetrieval.from_pretrained(MOMENT_MODEL_PATH,
                                            model_kwargs={
                                                'task_name': 'forecasting',
-                                               'forecast_horizon': 64,
+                                               'forecast_horizon': args.prediction_length,
                                            })
     model.init()
     if 'moe' in args.augment_mode:

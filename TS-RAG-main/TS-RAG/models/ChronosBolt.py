@@ -525,6 +525,10 @@ class ChronosBoltPipeline(BaseChronosPipeline):
         if context_length is not None:
             config.chronos_config["context_length"] = context_length
 
+        prediction_length = kwargs.pop("prediction_length", None)
+        if prediction_length is not None:
+            config.chronos_config["prediction_length"] = prediction_length
+
         architecture = config.architectures[0]
         class_ = globals().get(architecture)
 
@@ -1054,6 +1058,10 @@ class ChronosBoltPipelineWithRetrieval(BaseChronosPipeline):
         context_length = kwargs.pop("context_length", None)
         if context_length is not None:
             config.chronos_config["context_length"] = context_length
+
+        prediction_length = kwargs.pop("prediction_length", None)
+        if prediction_length is not None:
+            config.chronos_config["prediction_length"] = prediction_length
 
         architecture = config.architectures[0]
         class_ = globals().get(architecture)

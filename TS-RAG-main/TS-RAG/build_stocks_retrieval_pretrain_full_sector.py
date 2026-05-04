@@ -11,6 +11,13 @@ from chronos import ChronosPipeline
 from sector_metadata import PRETRAIN_TICKERS, metadata_for_ticker
 
 
+def configure_device(device: str) -> None:
+    if device == "cpu":
+        torch.set_num_threads(1)
+        torch.set_num_interop_threads(1)
+        print("[sector] Configured CPU threading: torch.set_num_threads(1), torch.set_num_interop_threads(1)")
+
+
 def resolve_pretrain_tickers(all_tickers: list[str]) -> list[str]:
     selected = [t for t in PRETRAIN_TICKERS if t in all_tickers]
     missing = [t for t in PRETRAIN_TICKERS if t not in all_tickers]
@@ -57,6 +64,7 @@ def build_retrieval_database_for_stocks(
     all_tickers = list(df.columns[1:])
     tickers = resolve_pretrain_tickers(all_tickers)
 
+    configure_device(device)
     pipeline = ChronosPipeline.from_pretrained(
         chronos_model_id,
         device_map=device,
@@ -72,7 +80,7 @@ def build_retrieval_database_for_stocks(
         if len(series) < total_len:
             continue
         num = len(series) - total_len + 1
-        batch_size = 256
+        batch_size = 256 if device != "cpu" else 32
 
         for start in range(0, num, batch_size):
             end = min(start + batch_size, num)
@@ -132,6 +140,7 @@ def build_pretrain_parquet_for_stocks(
     index = faiss.IndexFlatL2(embeddings.shape[1])
     index.add(embeddings)
 
+    configure_device(device)
     pipeline = ChronosPipeline.from_pretrained(
         chronos_model_id,
         device_map=device,
@@ -147,7 +156,7 @@ def build_pretrain_parquet_for_stocks(
         if len(series) < total_len:
             continue
         num = len(series) - total_len + 1
-        batch_size = 256
+        batch_size = 256 if device != "cpu" else 32
 
         for start in range(0, num, batch_size):
             end = min(start + batch_size, num)

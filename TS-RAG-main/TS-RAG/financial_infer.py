@@ -40,7 +40,7 @@ def run_forecast_for_ticker(pipeline, stocks_dir, ticker, time_col, price_col, p
 
     context = torch.tensor(context_arr, dtype=torch.float32)
 
-    forecast = pipeline.predict(context=context, prediction_length=prediction_length)
+    forecast = pipeline.predict(context, prediction_length)
 
     quantiles = pipeline.quantiles
     if 0.5 in quantiles:

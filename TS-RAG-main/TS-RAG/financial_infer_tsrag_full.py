@@ -177,7 +177,7 @@ def run_forecast_for_ticker_full(
 
     with torch.no_grad():
         forecast = pipe.predict(
-            context=context_tensor,
+            context_tensor,
             prediction_length=prediction_length,
             retrieved_seq=retrieved_seq.to(device),
             distances=distances.to(device),

@@ -215,8 +215,9 @@ def evaluate_test_metrics(
         for batch_x, batch_y in loader:
             batch_x = batch_x.to(device)
             outputs = model(context=batch_x)
-            # outputs.quantile_preds: [B, num_q, pred_len]
-            q_preds = outputs.quantile_preds[:, q_idx, :].cpu().numpy()
+            # outputs.quantile_preds: [B, num_q, seq_len + pred_len] or [B, num_q, pred_len]
+            # Extract only the last pred_len timesteps to match batch_y shape
+            q_preds = outputs.quantile_preds[:, q_idx, -pred_len:].cpu().numpy()
             preds.append(q_preds.reshape(-1))
             trues.append(batch_y.numpy().reshape(-1))
 

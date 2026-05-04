@@ -4,9 +4,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-from gluonts.itertools import Cyclic
 from torch.utils.data import IterableDataset
-from gluonts.dataset.common import FileDataset
 
 
 class PseudoShuffledIterableDataset(IterableDataset):
@@ -84,43 +82,48 @@ class CustomPretrainDataset(IterableDataset, ShuffleMixin):
             raise ValueError(f"Provided dataset_path {dataset_path} is not a directory.")
         
         # check files, all should be parquet
-        if not all([f.suffix == ".parquet" for f in self.dataset_path.iterdir()]):
+        parquet_files = sorted([f for f in self.dataset_path.iterdir() if f.suffix == ".parquet"])
+        if not parquet_files:
+            raise ValueError("No parquet files found in the dataset_path.")
+        if any(f.suffix != ".parquet" for f in self.dataset_path.iterdir()):
             raise ValueError("All files in the dataset_path should be parquet files.")
 
-        # lazy loading
-        self.dataset = FileDataset(self.dataset_path, freq="1H")
+        self.parquet_files = parquet_files
 
-        if self.mode == "training":
-            self.dataset = Cyclic(self.dataset)
+    def _iter_parquet_entries(self):
+        for path in self.parquet_files:
+            df = pd.read_parquet(path)
+            for row in df.itertuples(index=False):
+                yield {
+                    "target": np.asarray(row.target, dtype=np.float32),
+                    "indices": np.asarray(row.indices, dtype=np.int64),
+                    "distances": np.asarray(row.distances, dtype=np.float32),
+                }
 
+    def _prepare_entry(self, entry):
+        entry["target"] = np.asarray(entry["target"], dtype=np.float32)
+        entry["indices"] = np.asarray(entry["indices"], dtype=np.int64)[: self.top_k]
+        entry["distances"] = np.asarray(entry["distances"], dtype=np.float32)[: self.top_k]
+        entry["x"] = entry["target"][: self.context_length]
+        entry["y"] = entry["target"][self.context_length :]
+
+        if self.mode == "training" and self.drop_prob > 0:
+            target = entry["target"].copy()
+            drop_p = np.random.uniform(low=0.0, high=self.drop_prob)
+            mask = np.random.choice([True, False], size=len(target), p=[drop_p, 1 - drop_p])
+            target[mask] = np.nan
+            entry["target"] = target
+
+        return entry
 
     def __iter__(self):
-        iterable = iter(self.dataset)
         if self.mode == "training":
             while True:
-                entry = next(iterable)
-                entry = {f: entry[f] for f in ['target', 'distances', 'indices']}
-                entry['x'] = entry['target'][:self.context_length]
-                entry['y'] = entry['target'][self.context_length:]
-                entry['distances'] = entry['distances'][:self.top_k]
-                entry['indices'] = entry['indices'][:self.top_k]
-
-                if self.drop_prob > 0:
-                    target = entry['target'].copy()
-                    drop_p = np.random.uniform(low=0.0, high=self.drop_prob)
-                    mask = np.random.choice(
-                        [True, False], size=len(target), p=[drop_p, 1 - drop_p]
-                    )
-                    target[mask] = np.nan
-                    entry['target'] = target
-                yield entry
-
+                for entry in self._iter_parquet_entries():
+                    yield self._prepare_entry(entry)
         else:
-            for entry in iterable:
-                entry = {f: entry[f] for f in ['target', 'distances', 'indices']}
-                entry['x'] = entry['target'][:self.context_length]
-                entry['y'] = entry['target'][self.context_length:]
-                yield entry
+            for entry in self._iter_parquet_entries():
+                yield self._prepare_entry(entry)
 
 
 class Retriever_for_pretrain():

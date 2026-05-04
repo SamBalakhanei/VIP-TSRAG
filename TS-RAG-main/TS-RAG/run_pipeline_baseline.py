@@ -2,19 +2,7 @@ import argparse
 import subprocess
 import sys
 
-
-PRETRAIN_TICKERS = [
-    "OTEX",
-    "PATH",
-    "PUBM",
-    "GOOGL",
-    "ADP",
-    "CBRE",
-    "BLK",
-    "FRT",
-    "PINS",
-    "MKTX",
-]
+from sector_metadata import PRETRAIN_TICKERS
 
 EVAL_TICKERS = PRETRAIN_TICKERS
 
@@ -46,7 +34,7 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--pretrained_model_path", type=str, default="amazon/chronos-bolt-base")
-    parser.add_argument("--save_dir", type=str, default="./checkpoints/financial_finetuned_fixed10")
+    parser.add_argument("--save_dir", type=str, default="./checkpoints/financial_finetuned_fixed5")
     args = parser.parse_args()
 
     pretrain_cmd = [
@@ -69,7 +57,7 @@ def main() -> None:
         "--epochs",
         str(args.epochs),
     ]
-    run_step(pretrain_cmd, "Pretraining baseline on fixed 10-stock subset")
+    run_step(pretrain_cmd, "Pretraining baseline on fixed 5-stock subset")
 
     infer_cmd = [
         sys.executable,

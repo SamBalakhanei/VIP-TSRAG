@@ -128,7 +128,7 @@ def main():
         retrieved = np.stack([np.concatenate([x_seq[i].astype(np.float32), y_seq[i].astype(np.float32)]) for i in rr_idx], axis=0)
         with torch.no_grad():
             forecast = pipe.predict(
-                context=torch.tensor(context_arr, dtype=torch.float32, device=device).unsqueeze(0),
+                torch.tensor(context_arr, dtype=torch.float32, device=device).unsqueeze(0),
                 prediction_length=args.prediction_length,
                 retrieved_seq=torch.tensor(retrieved, dtype=torch.float32, device=device).unsqueeze(0),
                 distances=torch.tensor(rr_dist, dtype=torch.float32, device=device).unsqueeze(0),

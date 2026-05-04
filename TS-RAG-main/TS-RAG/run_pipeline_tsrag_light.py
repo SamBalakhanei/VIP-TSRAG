@@ -2,6 +2,7 @@ import argparse
 import subprocess
 import sys
 
+from sector_metadata import PRETRAIN_TICKERS
 
 EVAL_TICKERS = PRETRAIN_TICKERS
 

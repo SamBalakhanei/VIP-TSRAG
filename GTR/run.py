@@ -98,6 +98,9 @@ parser.add_argument('--use_multi_gpu', action='store_true', help='use multiple g
 parser.add_argument('--devices', type=str, default='0,1', help='device ids of multile gpus')
 parser.add_argument('--test_flop', action='store_true', default=False, help='See utils/tools for usage')
 
+#Horizon Modidication
+parser.add_argument('--horizon_aware', type=int, default=0, help='0: original GTR, 1: add horizon-aware future retrieval')
+
 args = parser.parse_args()
 
 # random seed
@@ -125,7 +128,7 @@ if args.is_training:
     for ii in range(args.itr):
 
         # setting record of experiments
-        setting = '{}_{}_{}_ft{}_sl{}_pl{}_cycle{}_seed{}'.format(
+        setting = '{}_{}_{}_ft{}_sl{}_pl{}_cycle{}_haware{}_seed{}'.format(
             args.model_id,
             args.model,
             args.data,
@@ -133,7 +136,9 @@ if args.is_training:
             args.seq_len,
             args.pred_len,
             args.cycle,
-            fix_seed)
+            args.horizon_aware,
+            fix_seed
+        )
 
         exp = Exp(args)  # set experiments
         print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
