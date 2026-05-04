@@ -67,6 +67,11 @@ class Model(nn.Module):
         self.use_revin = configs.use_revin
         self.individual = configs.individual
 
+        self.multi_period_resgtr = getattr(configs, "multi_period_resgtr", 0)
+
+        period_str = getattr(configs, "periods", "24,168")
+        self.periods = [int(p.strip()) for p in period_str.split(",") if p.strip()]
+
         self.Q = nn.Parameter(torch.zeros(self.cycle_len, self.enc_in), requires_grad=True)
         self.GTR = GTR(d_series=self.seq_len, c=self.enc_in, CI=self.individual)
         self.input_proj = nn.Linear(self.seq_len, self.d_model)
@@ -83,6 +88,19 @@ class Model(nn.Module):
             nn.Linear(self.d_model, self.pred_len)
         )
 
+        if self.multi_period_resgtr:
+            self.multi_Q = nn.ParameterList([
+                nn.Parameter(torch.zeros(period, self.enc_in), requires_grad=True)
+                for period in self.periods
+            ])
+
+            # gate over periods from the current input summary
+            self.period_gate = nn.Linear(self.enc_in, len(self.periods))
+
+            # calibration for the combined cycle forecast
+            self.mp_cycle_scale = nn.Parameter(torch.ones(1, 1, self.enc_in))
+            self.mp_cycle_bias = nn.Parameter(torch.zeros(1, 1, self.enc_in))
+
 
     def forward(self, x, cycle_index):
         # RevIN normalize
@@ -94,16 +112,55 @@ class Model(nn.Module):
         # (B, S, C) -> (B, C, S)
         x_input = x.permute(0, 2, 1)
 
-        # GTR part
-        gather_index = (cycle_index.view(-1, 1) +
-                        torch.arange(self.seq_len, device=cycle_index.device).view(1, -1)) % self.cycle_len
-        query_input = self.Q[gather_index].permute(0, 2, 1)
-        global_information = self.GTR(x_input, query_input)
+        # ===== MULTI-PERIOD RESIDUALIZED GTR PATH =====
+        if self.multi_period_resgtr:
+            B = x.size(0)
+            device = x.device
+            dtype = x.dtype
 
-        # Projection + MLP
-        input_proj = self.input_proj(x_input + global_information)
-        hidden = self.model(input_proj)
-        output = self.output_proj(hidden + input_proj).permute(0, 2, 1)
+            gate_input = x.mean(dim=1)  # (B, C)
+            period_weights = torch.softmax(self.period_gate(gate_input), dim=-1)  # (B, P)
+
+            seq_offsets = torch.arange(self.seq_len, device=device).view(1, -1)
+            pred_offsets = torch.arange(self.pred_len, device=device).view(1, -1)
+
+            global_information = torch.zeros_like(x_input)  # (B, C, seq_len)
+            y_cycle = torch.zeros(B, self.pred_len, self.enc_in, device=device, dtype=dtype)
+
+            for i, (period, Qp) in enumerate(zip(self.periods, self.multi_Q)):
+                # past retrieval for backbone context
+                gather_index = (cycle_index.view(-1, 1) + seq_offsets) % period
+                past_query = Qp[gather_index].permute(0, 2, 1)   # (B, C, seq_len)
+                global_p = self.GTR(x_input, past_query)         # (B, C, seq_len)
+
+                # future retrieval for explicit cycle forecast
+                future_index = (cycle_index.view(-1, 1) + self.seq_len + pred_offsets) % period
+                y_cycle_p = Qp[future_index]                     # (B, pred_len, C)
+
+                w = period_weights[:, i].view(-1, 1, 1)
+                global_information = global_information + w * global_p
+                y_cycle = y_cycle + w * y_cycle_p
+
+            input_proj = self.input_proj(x_input + global_information)
+            hidden = self.model(input_proj)
+            y_resid = self.output_proj(hidden + input_proj).permute(0, 2, 1)
+
+            y_cycle = self.mp_cycle_scale * y_cycle + self.mp_cycle_bias
+            output = y_cycle + y_resid
+
+        # ===== ORIGINAL BASE GTR PATH =====
+        else:
+            gather_index = (
+                cycle_index.view(-1, 1)
+                + torch.arange(self.seq_len, device=cycle_index.device).view(1, -1)
+            ) % self.cycle_len
+
+            query_input = self.Q[gather_index].permute(0, 2, 1)
+            global_information = self.GTR(x_input, query_input)
+
+            input_proj = self.input_proj(x_input + global_information)
+            hidden = self.model(input_proj)
+            output = self.output_proj(hidden + input_proj).permute(0, 2, 1)
 
         # RevIN de-normalize
         if self.use_revin:

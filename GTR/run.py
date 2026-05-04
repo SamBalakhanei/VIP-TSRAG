@@ -16,6 +16,11 @@ parser.add_argument('--model_id', type=str, required=True, default='test', help=
 parser.add_argument('--model', type=str, required=True, default='GTR',
                     help='model name, options: [Informer, Autoformer, ...]')
 
+parser.add_argument('--multi_period_resgtr', type=int, default=0,
+                    help='0: original GTR, 1: multi-period residualized GTR')
+parser.add_argument('--periods', type=str, default='24,168',
+                    help='comma-separated cycle lengths, e.g. 24,168')
+
 # data loader
 parser.add_argument('--data', type=str, required=True, default='ETTh1', help='dataset type')
 parser.add_argument('--root_path', type=str, default='./data/ETT/', help='root path of the data file')
@@ -125,7 +130,7 @@ if args.is_training:
     for ii in range(args.itr):
 
         # setting record of experiments
-        setting = '{}_{}_{}_ft{}_sl{}_pl{}_cycle{}_seed{}'.format(
+        setting = '{}_{}_{}_ft{}_sl{}_pl{}_cycle{}_mpres{}_periods{}_seed{}'.format(
             args.model_id,
             args.model,
             args.data,
@@ -133,6 +138,8 @@ if args.is_training:
             args.seq_len,
             args.pred_len,
             args.cycle,
+            args.multi_period_resgtr,
+            args.periods.replace(',', '-'),
             fix_seed)
 
         exp = Exp(args)  # set experiments
@@ -149,7 +156,7 @@ if args.is_training:
         torch.cuda.empty_cache()
 else:
     ii = 0
-    setting = '{}_{}_{}_ft{}_sl{}_pl{}_cycle{}_seed{}'.format(
+    setting = '{}_{}_{}_ft{}_sl{}_pl{}_cycle{}_mpres{}_periods{}_seed{}'.format(
         args.model_id,
         args.model,
         args.data,
@@ -157,6 +164,8 @@ else:
         args.seq_len,
         args.pred_len,
         args.cycle,
+        args.multi_period_resgtr,
+        args.periods.replace(',', '-'),
         fix_seed)
 
     exp = Exp(args)  # set experiments
